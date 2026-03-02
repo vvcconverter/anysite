@@ -1,27 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- Подключаем ТВОЙ API с ТВОЕГО Cloudflare Pages -->
   <script src="https://vvec-player.pages.dev/api.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #222;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    #player-container {
+      width: 800px;
+      height: 450px;
+      margin: 0 auto;
+      border: 2px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #444;
+      color: white;
+      border: 1px solid #666;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #555;
+    }
+  </style>
 </head>
 <body>
-  <div id="player-container" style="width: 800px; height: 450px; background: #000;"></div>
+  <h2>VVC Player Demo</h2>
+  
+  <div id="player-container"></div>
+  
+  <div class="controls">
+    <button onclick="player.play()">Play</button>
+    <button onclick="player.pause()">Pause</button>
+    <button onclick="player.stop()">Stop</button>
+    <button onclick="player.setSource('https://vvec-player.pages.dev/street.mp4')">Load Video</button>
+  </div>
   
   <script>
-    // Убедимся, что API загрузился
-    if (window.VVCPlayer) {
-      // Создаём плеер. Видео может быть с любого домена, поддерживающего CORS
-      const player = new VVCPlayer('player-container', 'https://example.com/video.vvc');
-      
-      // Пример управления через кнопки
-      document.getElementById('playBtn').onclick = () => player.play();
-      document.getElementById('pauseBtn').onclick = () => player.pause();
-    } else {
-      console.error('VVC Player API not loaded. Check script source.');
-    }
+    let player;
+    
+    window.addEventListener('load', function() {
+      player = new VVCPlayer(
+        'player-container',
+        'https://vvec-player.pages.dev/street.mp4'
+      );
+    });
   </script>
-  
-  <button id="playBtn">Play</button>
-  <button id="pauseBtn">Pause</button>
 </body>
 </html>
