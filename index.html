@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VVC Player — встраивание на любой сайт (API)</title>
+  <style>
+    :root { --bg: #1a1a1a; --card: #252525; --border: #444; --text: #eee; --accent: #0d6efd; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); padding: 1rem; }
+    h1 { font-size: 1.25rem; margin-top: 0; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: #aaa; }
+    input[type="url"], input[type="text"] { width: 100%; padding: 0.5rem; background: #111; border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+    .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
+    button { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.9rem; }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: #555; }
+    .player-wrap { position: relative; width: 100%; max-width: 900px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+    .player-wrap iframe { display: block; width: 100%; height: 500px; border: none; }
+    .hint { font-size: 0.8rem; color: #888; margin-top: 0.5rem; }
+    code { background: #333; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.85em; }
+    #status { font-size: 0.85rem; color: #888; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>VVC Player API — воспроизведение по ссылке</h1>
+    <p>Плеер размещён на <strong>https://vvec-player.pages.dev/</strong>. Ниже можно подставить любую ссылку на VVC или VVC-in-MP4 и воспроизвести через этот плеер (не HTML5).</p>
+  </div>
+
+  <div class="card">
+    <label for="playerBaseUrl">URL плеера (для встраивания):</label>
+    <input type="text" id="playerBaseUrl" value="https://vvec-player.pages.dev/" placeholder="https://vvec-player.pages.dev/">
+    <div class="hint">На своём сайте укажи этот же URL в <code>iframe src</code>.</div>
+  </div>
+
+  <div class="card">
+    <label for="videoUrl">Ссылка на VVC / VVC-in-MP4:</label>
+    <input type="url" id="videoUrl" value="https://vvcconverter.github.io/vvc-player.github.io/street.mp4" placeholder="https://...">
+    <div class="row">
+      <button id="btnPlay">▶ Воспроизвести</button>
+      <button id="btnStop" class="secondary">⏹ Стоп</button>
+    </div>
+    <p id="status"></p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 1rem;">Плеер (iframe)</h2>
+    <div class="player-wrap">
+      <iframe id="vvcFrame" title="VVC Player"></iframe>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 1rem;">Как подключить API на своём сайте</h2>
+    <p>1. Вставь на страницу iframe с плеером:</p>
+    <pre style="background:#222; padding:0.75rem; border-radius:4px; overflow:auto; font-size:0.85rem;"><code>&lt;iframe id="vvcFrame" src="https://vvec-player.pages.dev/"&gt;&lt;/iframe&gt;</code></pre>
+    <p>2. Чтобы запустить воспроизведение по своей ссылке (с другого домена), отправь postMessage:</p>
+    <pre style="background:#222; padding:0.75rem; border-radius:4px; overflow:auto; font-size:0.85rem;"><code>var frame = document.getElementById("vvcFrame");
+frame.contentWindow.postMessage(
+  { type: "VVC_PLAYER_COMMAND", cmd: "play", url: "https://твой-сервер.com/video.vvc" },
+  "https://vvec-player.pages.dev"
+);</code></pre>
+    <p>Команды: <code>cmd: "play"</code> (обязательно <code>url</code>), <code>cmd: "pause"</code>, <code>cmd: "stop"</code>. Это API именно VVC Web Player (canvas + WASM), не HTML5 video.</p>
+  </div>
+
+  <script>
+    (function () {
+      const playerBaseUrl = document.getElementById("playerBaseUrl");
+      const videoUrl = document.getElementById("videoUrl");
+      const vvcFrame = document.getElementById("vvcFrame");
+      const btnPlay = document.getElementById("btnPlay");
+      const btnStop = document.getElementById("btnStop");
+      const status = document.getElementById("status");
+
+      function getOrigin(url) {
+        try {
+          const u = new URL(url);
+          return u.origin;
+        } catch (e) { return ""; }
+      }
+
+      function loadPlayer() {
+        const base = (playerBaseUrl.value || "").trim().replace(/\/?$/, "/");
+        if (!base) return;
+        vvcFrame.src = base;
+        status.textContent = "Загрузка плеера…";
+      }
+
+      playerBaseUrl.addEventListener("change", loadPlayer);
+      loadPlayer();
+
+      vvcFrame.addEventListener("load", function () {
+        status.textContent = "Плеер загружен. Введи ссылку и нажми «Воспроизвести».";
+      });
+
+      btnPlay.addEventListener("click", function () {
+        const url = (videoUrl.value || "").trim();
+        if (!url) {
+          status.textContent = "Введите ссылку на VVC / VVC-in-MP4.";
+          return;
+        }
+        const origin = getOrigin(playerBaseUrl.value || vvcFrame.src);
+        if (!origin) {
+          status.textContent = "Неверный URL плеера.";
+          return;
+        }
+        try {
+          vvcFrame.contentWindow.postMessage(
+            { type: "VVC_PLAYER_COMMAND", cmd: "play", url: url },
+            origin
+          );
+          status.textContent = "Команда play отправлена: " + url;
+        } catch (e) {
+          status.textContent = "Ошибка: " + e.message;
+        }
+      });
+
+      btnStop.addEventListener("click", function () {
+        const origin = getOrigin(playerBaseUrl.value || vvcFrame.src);
+        if (!origin) return;
+        try {
+          vvcFrame.contentWindow.postMessage(
+            { type: "VVC_PLAYER_COMMAND", cmd: "stop" },
+            origin
+          );
+          status.textContent = "Команда stop отправлена.";
+        } catch (e) {
+          status.textContent = "Ошибка: " + e.message;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
