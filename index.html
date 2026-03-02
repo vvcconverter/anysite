@@ -1,6 +1,13 @@
 <!DOCTYPE html>
-<html>
+<!--
+  Страница-пример встраивания плеера. Если размещаете на ДРУГОМ сайте:
+  сервер этого сайта должен отдавать заголовки COOP/COEP для данной страницы,
+  иначе WASM не загрузится (таймаут). См. api.conf, блок 2.
+-->
+<html lang="ru">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://vvec-player.pages.dev/api.js"></script>
   <style>
     body {
@@ -17,12 +24,22 @@
       border: 2px solid #444;
       border-radius: 8px;
       overflow: hidden;
+      position: relative;
+    }
+    #player-container.loading::after {
+      content: 'Загрузка плеера…';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      color: #888;
     }
     .controls {
       text-align: center;
       margin-top: 20px;
     }
-    button {
+    .controls button {
       padding: 10px 20px;
       margin: 0 10px;
       font-size: 16px;
@@ -32,32 +49,95 @@
       border: 1px solid #666;
       border-radius: 4px;
     }
-    button:hover {
+    .controls button:hover:not(:disabled) {
       background: #555;
     }
+    .controls button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
+    }
+    #status.error { color: #e66; }
+    #status.ready { color: #6e6; }
   </style>
 </head>
 <body>
   <h2>VVC Player Demo</h2>
-  
-  <div id="player-container"></div>
-  
+
+  <div id="player-container" class="loading"></div>
+
   <div class="controls">
-    <button onclick="player.play()">Play</button>
-    <button onclick="player.pause()">Pause</button>
-    <button onclick="player.stop()">Stop</button>
-    <button onclick="player.setSource('https://vvec-player.pages.dev/street.mp4')">Load Video</button>
+    <button id="btn-play" disabled>Play</button>
+    <button id="btn-pause" disabled>Pause</button>
+    <button id="btn-stop" disabled>Stop</button>
+    <button id="btn-load" disabled>Load Video</button>
   </div>
-  
+
+  <p id="status">Инициализация…</p>
+
   <script>
     let player;
-    
-    window.addEventListener('load', function() {
-      player = new VVCPlayer(
-        'player-container',
-        'https://vvec-player.pages.dev/street.mp4'
-      );
+    const VIDEO_URL = 'https://vvec-player.pages.dev/street.mp4';
+
+    function setReady(ready) {
+      document.getElementById('player-container').classList.toggle('loading', !ready);
+      document.getElementById('btn-play').disabled = !ready;
+      document.getElementById('btn-pause').disabled = !ready;
+      document.getElementById('btn-stop').disabled = !ready;
+      document.getElementById('btn-load').disabled = !ready;
+    }
+
+    function setStatus(text, isError) {
+      const el = document.getElementById('status');
+      el.textContent = text;
+      el.className = isError ? 'error' : (text.indexOf('готов') !== -1 ? 'ready' : '');
+    }
+
+    window.addEventListener('load', function () {
+      if (typeof VVCPlayer === 'undefined') {
+        setStatus('Ошибка: api.js не загрузился (проверьте сеть или CORS).', true);
+        return;
+      }
+
+      try {
+        player = new VVCPlayer('player-container', VIDEO_URL);
+      } catch (e) {
+        setStatus('Ошибка: ' + e.message, true);
+        return;
+      }
+
+      player.readyPromise
+        .then(function () {
+          setReady(true);
+          setStatus('Плеер готов. Нажмите Play или Load Video.');
+        })
+        .catch(function (err) {
+          setStatus('Ошибка инициализации: ' + (err && err.message ? err.message : err), true);
+          if (err && err.message && err.message.indexOf('SharedArrayBuffer') !== -1) {
+            setStatus(
+              'Нужна cross-origin изоляция (заголовки COOP/COEP). ' +
+              'Либо откройте страницу с того же домена, что и плеер.',
+              true
+            );
+          }
+        });
     });
+
+    document.getElementById('btn-play').onclick = function () { player && player.play(); };
+    document.getElementById('btn-pause').onclick = function () { player && player.pause(); };
+    document.getElementById('btn-stop').onclick = function () { player && player.stop(); };
+    document.getElementById('btn-load').onclick = function () {
+      if (player) {
+        setStatus('Загрузка видео…');
+        player.setSource(VIDEO_URL);
+        setStatus('Плеер готов. Нажмите Play.');
+      }
+    };
   </script>
 </body>
 </html>
