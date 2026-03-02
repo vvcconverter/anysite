@@ -70,10 +70,13 @@ frame.contentWindow.postMessage(
     (function () {
       const playerBaseUrl = document.getElementById("playerBaseUrl");
       const videoUrl = document.getElementById("videoUrl");
-      const vvcFrame = document.getElementById("vvcFrame");
+      const frame = document.getElementById("vvcFrame");
       const btnPlay = document.getElementById("btnPlay");
       const btnStop = document.getElementById("btnStop");
       const status = document.getElementById("status");
+
+      let playerOrigin = "";
+      let playerReady = false;
 
       function getOrigin(url) {
         try {
@@ -85,15 +88,26 @@ frame.contentWindow.postMessage(
       function loadPlayer() {
         const base = (playerBaseUrl.value || "").trim().replace(/\/?$/, "/");
         if (!base) return;
-        vvcFrame.src = base;
+        playerOrigin = getOrigin(base);
+        playerReady = false;
+        btnPlay.disabled = true;
+        frame.src = base;
         status.textContent = "Загрузка плеера…";
       }
+
+      window.addEventListener("message", function (ev) {
+        if (ev.data && ev.data.type === "VVC_PLAYER_READY") {
+          playerReady = true;
+          btnPlay.disabled = false;
+          status.textContent = "Плеер готов. Введите ссылку на VVC/MP4 и нажмите «Воспроизвести». Чужой домен — плеер подставит прокси.";
+        }
+      });
 
       playerBaseUrl.addEventListener("change", loadPlayer);
       loadPlayer();
 
-      vvcFrame.addEventListener("load", function () {
-        status.textContent = "Плеер загружен. Введи ссылку и нажми «Воспроизвести».";
+      frame.addEventListener("load", function () {
+        if (!playerReady) status.textContent = "Ожидание готовности плеера…";
       });
 
       btnPlay.addEventListener("click", function () {
@@ -102,31 +116,31 @@ frame.contentWindow.postMessage(
           status.textContent = "Введите ссылку на VVC / VVC-in-MP4.";
           return;
         }
-        const origin = getOrigin(playerBaseUrl.value || vvcFrame.src);
-        if (!origin) {
+        if (!playerOrigin) playerOrigin = getOrigin(playerBaseUrl.value || frame.src);
+        if (!playerOrigin) {
           status.textContent = "Неверный URL плеера.";
           return;
         }
         try {
-          vvcFrame.contentWindow.postMessage(
+          frame.contentWindow.postMessage(
             { type: "VVC_PLAYER_COMMAND", cmd: "play", url: url },
-            origin
+            playerOrigin
           );
-          status.textContent = "Команда play отправлена: " + url;
+          status.textContent = "Воспроизведение: " + url;
         } catch (e) {
           status.textContent = "Ошибка: " + e.message;
         }
       });
 
       btnStop.addEventListener("click", function () {
-        const origin = getOrigin(playerBaseUrl.value || vvcFrame.src);
-        if (!origin) return;
+        if (!playerOrigin) playerOrigin = getOrigin(playerBaseUrl.value || frame.src);
+        if (!playerOrigin) return;
         try {
-          vvcFrame.contentWindow.postMessage(
+          frame.contentWindow.postMessage(
             { type: "VVC_PLAYER_COMMAND", cmd: "stop" },
-            origin
+            playerOrigin
           );
-          status.textContent = "Команда stop отправлена.";
+          status.textContent = "Стоп.";
         } catch (e) {
           status.textContent = "Ошибка: " + e.message;
         }
